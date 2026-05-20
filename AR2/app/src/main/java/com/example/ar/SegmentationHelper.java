@@ -11,6 +11,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 
+import android.util.Log;
+
 public class SegmentationHelper {
 
     private Interpreter interpreter;
@@ -50,16 +52,28 @@ public class SegmentationHelper {
     }
 
     public Bitmap applyJaundiceFilter(Bitmap bitmap) {
+        Log.d("SEGMENTATION", "Function started");
 
         Bitmap resizedBitmap =
-                Bitmap.createScaledBitmap(bitmap, INPUT_SIZE, INPUT_SIZE, true);
+                Bitmap.createScaledBitmap(
+                        bitmap,
+                        INPUT_SIZE,
+                        INPUT_SIZE,
+                        true
+                );
+
+        Bitmap result =
+                resizedBitmap.copy(Bitmap.Config.ARGB_8888, true);
 
         ByteBuffer inputBuffer =
-                ByteBuffer.allocateDirect(4 * INPUT_SIZE * INPUT_SIZE * 3);
+                ByteBuffer.allocateDirect(
+                        4 * INPUT_SIZE * INPUT_SIZE * 3
+                );
 
         inputBuffer.order(ByteOrder.nativeOrder());
 
-        int[] pixels = new int[INPUT_SIZE * INPUT_SIZE];
+        int[] pixels =
+                new int[INPUT_SIZE * INPUT_SIZE];
 
         resizedBitmap.getPixels(
                 pixels,
@@ -82,21 +96,38 @@ public class SegmentationHelper {
             inputBuffer.putFloat(b);
         }
 
+        inputBuffer.rewind();
+
         float[][][][] output =
-                new float[1][INPUT_SIZE][INPUT_SIZE][1];
+                new float[1][256][256][1];
 
         interpreter.run(inputBuffer, output);
 
-        Bitmap result =
-                resizedBitmap.copy(Bitmap.Config.ARGB_8888, true);
+        float min = 999f;
+        float max = -999f;
+
+        for (int y = 0; y < 256; y++) {
+
+            for (int x = 0; x < 256; x++) {
+
+                float value = output[0][y][x][0];
+
+                if (value < min) min = value;
+                if (value > max) max = value;
+            }
+        }
+
+        Log.d("SEGMENTATION", "MASK MIN = " + min);
+        Log.d("SEGMENTATION", "MASK MAX = " + max);
 
         for (int y = 0; y < INPUT_SIZE; y++) {
 
             for (int x = 0; x < INPUT_SIZE; x++) {
 
-                float confidence = output[0][y][x][0];
+                float confidence =
+                        output[0][y][x][0];
 
-                if (confidence > 0.5f) {
+                if (confidence > 0.1f) {
 
                     int pixel = result.getPixel(x, y);
 
@@ -104,8 +135,8 @@ public class SegmentationHelper {
                     int g = (pixel >> 8) & 0xFF;
                     int b = pixel & 0xFF;
 
-                    r = Math.min(255, r + 40);
-                    g = Math.min(255, g + 40);
+                    r = Math.min(255, r + 80);
+                    g = Math.min(255, g + 80);
 
                     result.setPixel(
                             x,

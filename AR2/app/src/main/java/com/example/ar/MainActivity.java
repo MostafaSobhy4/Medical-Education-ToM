@@ -18,10 +18,21 @@ import androidx.camera.view.PreviewView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import android.util.Log;
+
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutionException;
+
+
+import android.graphics.BitmapFactory;
+import android.graphics.ImageFormat;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
+
+import java.io.ByteArrayOutputStream;
+
 
 public class MainActivity extends AppCompatActivity {
 
@@ -47,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
         }
         catch (Exception e) {
             e.printStackTrace();
+            System.out.println("MODEL FAILED");
         }
 
         if (ContextCompat.checkSelfPermission(
@@ -119,6 +131,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void processImage(ImageProxy image) {
+        Log.d("CAMERA", "Frame received");
 
         Bitmap bitmap = imageProxyToBitmap(image);
 
@@ -137,18 +150,57 @@ public class MainActivity extends AppCompatActivity {
 
         try {
 
-            ByteBuffer buffer =
+            ByteBuffer yBuffer =
                     image.getPlanes()[0].getBuffer();
 
-            byte[] bytes = new byte[buffer.remaining()];
+            ByteBuffer uBuffer =
+                    image.getPlanes()[1].getBuffer();
 
-            buffer.get(bytes);
+            ByteBuffer vBuffer =
+                    image.getPlanes()[2].getBuffer();
 
-            return Bitmap.createBitmap(
-                    256,
-                    256,
-                    Bitmap.Config.ARGB_8888
+            int ySize = yBuffer.remaining();
+            int uSize = uBuffer.remaining();
+            int vSize = vBuffer.remaining();
+
+            byte[] nv21 = new byte[ySize + uSize + vSize];
+
+            yBuffer.get(nv21, 0, ySize);
+            vBuffer.get(nv21, ySize, vSize);
+            uBuffer.get(nv21, ySize + vSize, uSize);
+
+            YuvImage yuvImage = new YuvImage(
+                    nv21,
+                    ImageFormat.NV21,
+                    image.getWidth(),
+                    image.getHeight(),
+                    null
             );
+
+            ByteArrayOutputStream out =
+                    new ByteArrayOutputStream();
+
+            yuvImage.compressToJpeg(
+                    new Rect(
+                            0,
+                            0,
+                            image.getWidth(),
+                            image.getHeight()
+                    ),
+                    100,
+                    out
+            );
+
+            byte[] imageBytes = out.toByteArray();
+
+            Bitmap bitmap =
+                    BitmapFactory.decodeByteArray(
+                            imageBytes,
+                            0,
+                            imageBytes.length
+                    );
+
+            return bitmap;
 
         }
         catch (Exception e) {
