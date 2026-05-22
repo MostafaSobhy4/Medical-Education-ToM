@@ -35,6 +35,33 @@ RIGHT_EYE = [362, 385, 387, 386, 374, 373]
 previous_mask = None
 
 # ============================================
+# IMPROVED BUTTERFLY RASH REGIONS
+# ============================================
+
+LEFT_CHEEK = [
+
+    50, 101, 118, 117, 116,
+    123, 147, 187, 207, 206,
+    205, 203, 142, 100
+
+]
+
+RIGHT_CHEEK = [
+
+    280, 330, 347, 346, 345,
+    352, 376, 411, 427, 426,
+    425, 423, 371, 329
+
+]
+
+NOSE_BRIDGE = [
+
+    168, 197, 195, 5, 4, 45,
+    275, 440, 344, 278
+
+]
+
+# ============================================
 # JAUNDICE FILTER
 # ============================================
 
@@ -238,6 +265,134 @@ def apply_edema(frame, landmarks):
 
     return frame
 
+def apply_butterfly_rash(frame, landmarks):
+
+    h, w, _ = frame.shape
+
+    # =====================================
+    # CREATE EMPTY MASK
+    # =====================================
+
+    mask = np.zeros((h, w), dtype=np.uint8)
+
+    # =====================================
+    # LEFT CHEEK
+    # =====================================
+
+    left_pts = []
+
+    for idx in LEFT_CHEEK:
+
+        x = int(landmarks[idx].x * w)
+        y = int(landmarks[idx].y * h)
+
+        left_pts.append([x, y])
+
+    left_pts = np.array(left_pts, np.int32)
+
+    cv2.fillPoly(mask, [left_pts], 255)
+
+    # =====================================
+    # RIGHT CHEEK
+    # =====================================
+
+    right_pts = []
+
+    for idx in RIGHT_CHEEK:
+
+        x = int(landmarks[idx].x * w)
+        y = int(landmarks[idx].y * h)
+
+        right_pts.append([x, y])
+
+    right_pts = np.array(right_pts, np.int32)
+
+    cv2.fillPoly(mask, [right_pts], 255)
+
+    # =====================================
+    # NOSE BRIDGE
+    # =====================================
+
+    nose_pts = []
+
+    for idx in NOSE_BRIDGE:
+
+        x = int(landmarks[idx].x * w)
+        y = int(landmarks[idx].y * h)
+
+        nose_pts.append([x, y])
+
+    nose_pts = np.array(nose_pts, np.int32)
+
+    cv2.fillPoly(mask, [nose_pts], 255)
+
+    # =====================================
+    # SOFTEN MASK
+    # =====================================
+
+    # multi-stage blur for soft medical appearance
+
+    mask = cv2.GaussianBlur(mask, (31, 31), 0)
+
+    mask = cv2.GaussianBlur(mask, (51, 51), 0)
+
+    mask = cv2.GaussianBlur(mask, (71, 71), 0)
+
+    mask_float = mask.astype(np.float32) / 255.0
+
+    mask_3ch = cv2.merge([
+        mask_float,
+        mask_float,
+        mask_float
+    ])
+
+    # =====================================
+    # CREATE RASH COLOR
+    # =====================================
+
+    rash = frame.copy().astype(np.float32)
+
+    # deep red inflammation look
+
+    # strong red boost
+    rash[:, :, 2] *= 1.75
+
+    # suppress green
+    rash[:, :, 1] *= 0.78
+
+    # suppress blue
+    rash[:, :, 0] *= 0.72
+
+    rash *= 0.92
+
+    rash = np.clip(rash, 0, 255).astype(np.uint8)
+
+    noise = np.random.normal(
+    0,
+    8,
+    frame.shape
+    ).astype(np.float32)
+
+    rash = rash.astype(np.float32) + noise
+
+    rash = np.clip(rash, 0, 255).astype(np.uint8)
+
+    # =====================================
+    # BLEND
+    # =====================================
+
+    opacity = 0.65
+
+    result = (
+        frame.astype(np.float32) * (1 - mask_3ch * opacity)
+        +
+        rash.astype(np.float32) * (mask_3ch * opacity)
+    )
+
+    result = np.clip(result, 0, 255).astype(np.uint8)
+
+    return result
+
 # ============================================
 # MAIN
 # ============================================
@@ -247,8 +402,9 @@ def main():
     print("Choose filter:")
     print("1 -> Jaundice")
     print("2 -> Edema")
+    print("3 -> Butterfly Rash")
 
-    choice = input("Enter 1 or 2: ")
+    choice = input("Enter 1 or 2 or 3: ")
 
     cap = cv2.VideoCapture(0)
 
@@ -309,6 +465,15 @@ def main():
             if landmarks is not None:
 
                 frame = apply_edema(
+                    frame,
+                    landmarks
+                )
+        
+        elif choice == "3":
+
+            if landmarks is not None:
+
+                frame = apply_butterfly_rash(
                     frame,
                     landmarks
                 )
