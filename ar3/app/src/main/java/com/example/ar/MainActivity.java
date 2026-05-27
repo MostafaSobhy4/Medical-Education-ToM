@@ -1,19 +1,16 @@
 package com.example.ar;
 
-import org.opencv.android.OpenCVLoader;
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.SurfaceTexture;
 import android.os.Bundle;
+import android.view.Surface;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.Preview;
-
 import androidx.camera.lifecycle.ProcessCameraProvider;
-import androidx.camera.view.PreviewView;
-
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -21,96 +18,77 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 public class MainActivity extends AppCompatActivity {
 
-    private PreviewView previewView;
-
     private static final int CAMERA_PERMISSION_CODE = 100;
+
+    private GLView glView;
+    private SurfaceTexture pendingSurfaceTexture;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.activity_main);
 
-        previewView = findViewById(R.id.previewView);
+        glView = findViewById(R.id.glView);
 
-        // ============================================
-        // CAMERA PERMISSION
-        // ============================================
+        glView.getRenderer().setGLReadyCallback(surfaceTexture -> {
+            runOnUiThread(() -> {
+                pendingSurfaceTexture = surfaceTexture;
+                startCamera();
+            });
+        });
 
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.CAMERA
-        ) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                != PackageManager.PERMISSION_GRANTED) {
 
             ActivityCompat.requestPermissions(
                     this,
                     new String[]{Manifest.permission.CAMERA},
                     CAMERA_PERMISSION_CODE
             );
-
-        } else {
-
-            startCamera();
         }
     }
 
-    // ============================================
-    // START CAMERA
-    // ============================================
-
     private void startCamera() {
 
-        ListenableFuture<ProcessCameraProvider> cameraProviderFuture =
+        if (pendingSurfaceTexture == null) return;
+
+        ListenableFuture<ProcessCameraProvider> future =
                 ProcessCameraProvider.getInstance(this);
 
-        cameraProviderFuture.addListener(() -> {
-
+        future.addListener(() -> {
             try {
+                ProcessCameraProvider cameraProvider = future.get();
 
-                ProcessCameraProvider cameraProvider =
-                        cameraProviderFuture.get();
+                pendingSurfaceTexture.setDefaultBufferSize(1920, 1080);
+                Surface surface = new Surface(pendingSurfaceTexture);
 
-                // ============================================
-                // PREVIEW
-                // ============================================
+                Preview preview = new Preview.Builder().build();
 
-                Preview preview = new Preview.Builder()
-                        .build();
+                preview.setSurfaceProvider(request -> {
+                    request.provideSurface(
+                            surface,
+                            ContextCompat.getMainExecutor(this),
+                            result -> {
+                                // DO NOT release surface here
+                            }
+                    );
+                });
 
-                preview.setSurfaceProvider(
-                        previewView.getSurfaceProvider()
-                );
-
-                // ============================================
-                // FRONT CAMERA
-                // ============================================
-
-                CameraSelector cameraSelector =
-                        CameraSelector.DEFAULT_FRONT_CAMERA;
-
-                // ============================================
-                // BIND CAMERA
-                // ============================================
+                CameraSelector selector = CameraSelector.DEFAULT_FRONT_CAMERA;
 
                 cameraProvider.unbindAll();
-
                 cameraProvider.bindToLifecycle(
                         this,
-                        cameraSelector,
+                        selector,
                         preview
                 );
 
             } catch (Exception e) {
-
                 e.printStackTrace();
             }
 
         }, ContextCompat.getMainExecutor(this));
     }
-
-    // ============================================
-    // PERMISSION CALLBACK
-    // ============================================
 
     @Override
     public void onRequestPermissionsResult(
@@ -118,23 +96,14 @@ public class MainActivity extends AppCompatActivity {
             @NonNull String[] permissions,
             @NonNull int[] grantResults
     ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        super.onRequestPermissionsResult(
-                requestCode,
-                permissions,
-                grantResults
-        );
+        if (requestCode == CAMERA_PERMISSION_CODE &&
+                grantResults.length > 0 &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
-        if (requestCode == CAMERA_PERMISSION_CODE) {
-
-            if (grantResults.length > 0
-                    && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
+            if (pendingSurfaceTexture != null) {
                 startCamera();
-
-            } else {
-
-                finish();
             }
         }
     }
