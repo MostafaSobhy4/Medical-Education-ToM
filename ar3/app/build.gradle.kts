@@ -43,4 +43,8 @@ dependencies {
     implementation ("androidx.camera:camera-view:1.3.4")
 
     implementation("org.opencv:opencv:4.9.0")
+
+    implementation("com.google.mediapipe:tasks-vision:0.10.21")
+    implementation("com.google.mediapipe:tasks-core:0.10.21")
+
 }

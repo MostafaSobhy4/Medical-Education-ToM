@@ -1,19 +1,23 @@
-
-
 #extension GL_OES_EGL_image_external : require
 precision mediump float;
 
-uniform samplerExternalOES texture;
+uniform sampler2D texture;
+uniform sampler2D maskTexture;
+uniform int filterMode;
+
 varying vec2 vTexCoord;
 
 void main() {
 
-    vec4 color = texture2D(texture, vTexCoord);
+    vec4 camera = texture2D(texture, vTexCoord);
+    float mask = texture2D(maskTexture, vTexCoord).r;
 
-    // simple "jaundice bias"
-    color.r += 0.08;
-    color.g += 0.05;
-    color.b -= 0.03;
+    vec3 color = camera.rgb;
 
-    gl_FragColor = color;
+    if (filterMode == 1) {
+        vec3 jaundice = vec3(1.0, 0.9, 0.6);
+        color = mix(camera.rgb, jaundice, mask);
+    }
+
+    gl_FragColor = vec4(color, 1.0);
 }
