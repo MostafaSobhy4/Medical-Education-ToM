@@ -37,16 +37,24 @@ public class GLRenderer implements GLSurfaceView.Renderer,
     private FloatBuffer texBuffer;
 
     private final float[] vertices = {
-            -1f, -1f,
-            1f, -1f,
-            -1f,  1f,
-            1f,  1f
+
+            // slight zoom/crop for AR debugging
+
+            -1.15f, -1.15f,
+            1.15f, -1.15f,
+            -1.15f,  1.15f,
+            1.15f,  1.15f
     };
 
+
+
     private final float[] texCoords = {
+
+            // correct portrait front camera
+
             0f, 1f,
-            1f, 1f,
             0f, 0f,
+            1f, 1f,
             1f, 0f
     };
 

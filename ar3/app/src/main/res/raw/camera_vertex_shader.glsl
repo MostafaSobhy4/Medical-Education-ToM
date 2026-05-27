@@ -1,4 +1,4 @@
-#version 120
+#extension GL_OES_EGL_image_external : require
 
 attribute vec4 position;
 attribute vec2 texCoord;
