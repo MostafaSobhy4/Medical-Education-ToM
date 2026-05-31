@@ -4,17 +4,12 @@ import android.graphics.SurfaceTexture;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
-import android.util.Log;
-
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
-
-import android.graphics.Bitmap;
-import android.opengl.GLUtils;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 
 public class GLRenderer implements GLSurfaceView.Renderer,
         SurfaceTexture.OnFrameAvailableListener {
@@ -23,271 +18,132 @@ public class GLRenderer implements GLSurfaceView.Renderer,
         void onReady(SurfaceTexture surfaceTexture);
     }
 
+    private final GLView glView;
     private GLReadyCallback callback;
-    private GLSurfaceView glView;
-
-    private int textureId;
     private SurfaceTexture surfaceTexture;
+    private int program, textureId;
+    private int filterMode = 0;
+    private boolean frameAvailable = false;
 
-    private int program;
-    private int positionHandle;
-    private int texCoordHandle;
-    private int textureUniform;
+    // Viewport size — set in onSurfaceChanged, passed to shader as uResolution
+    private float viewportW = 1080f, viewportH = 1920f;
 
-    private int oesTextureLocation = 0;
+    // Face landmark positions (UV space 0–1)
+    private float leftCheekX = 0.35f, leftCheekY = 0.52f;
+    private float rightCheekX = 0.65f, rightCheekY = 0.52f;
+    private float noseX = 0.5f, noseY = 0.48f;
 
-    private FloatBuffer vertexBuffer;
-    private FloatBuffer texBuffer;
+    private static final float[] QUAD = {
+            -1f, -1f,  0f, 0f,
+            1f, -1f,  1f, 0f,
+            -1f,  1f,  0f, 1f,
+            1f,  1f,  1f, 1f,
+    };
+    private final FloatBuffer quadBuf;
 
-    private int maskTextureId;
+    public GLRenderer(GLView view) {
+        glView = view;
+        quadBuf = ByteBuffer.allocateDirect(QUAD.length * 4)
+                .order(ByteOrder.nativeOrder()).asFloatBuffer();
+        quadBuf.put(QUAD).position(0);
+    }
 
-    private int maskUniform;
-
-    private int maskWidth = 256;
-    private int maskHeight = 256;
-
-    private ByteBuffer testMaskBuffer;
-
-    // Add these fields at the top of the class
-    private int filterModeUniform;
-    private int currentFilterMode = 0; // 0=none, 1=jaundice, 2=edema, 3=butterfly
+    public void setGLReadyCallback(GLReadyCallback cb) { callback = cb; }
 
     public void setFilterMode(int mode) {
-        this.currentFilterMode = mode;
+        filterMode = mode;
+        glView.requestRender();
     }
 
-    private final float[] vertices = {
-
-            // slight zoom/crop for AR debugging
-
-            -1.15f, -1.15f,
-            1.15f, -1.15f,
-            -1.15f,  1.15f,
-            1.15f,  1.15f
-    };
-
-
-
-    private final float[] texCoords = {
-
-            // correct portrait front camera
-
-            0f, 1f,
-            0f, 0f,
-            1f, 1f,
-            1f, 0f
-    };
-
-    public void setGLView(GLSurfaceView view) {
-        this.glView = view;
-    }
-
-    public void setGLReadyCallback(GLReadyCallback callback) {
-        this.callback = callback;
-    }
-
-    private int createMaskTexture() {
-
-        int[] tex = new int[1];
-
-        GLES20.glGenTextures(1, tex, 0);
-
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tex[0]);
-
-        GLES20.glTexParameteri(
-                GLES20.GL_TEXTURE_2D,
-                GLES20.GL_TEXTURE_MIN_FILTER,
-                GLES20.GL_LINEAR
-        );
-
-        GLES20.glTexParameteri(
-                GLES20.GL_TEXTURE_2D,
-                GLES20.GL_TEXTURE_MAG_FILTER,
-                GLES20.GL_LINEAR
-        );
-
-        GLES20.glTexParameteri(
-                GLES20.GL_TEXTURE_2D,
-                GLES20.GL_TEXTURE_WRAP_S,
-                GLES20.GL_CLAMP_TO_EDGE
-        );
-
-        GLES20.glTexParameteri(
-                GLES20.GL_TEXTURE_2D,
-                GLES20.GL_TEXTURE_WRAP_T,
-                GLES20.GL_CLAMP_TO_EDGE
-        );
-
-        return tex[0];
-    }
-
-    private void createTestMask() {
-
-        byte[] data = new byte[maskWidth * maskHeight];
-
-        for (int y = 0; y < maskHeight; y++) {
-
-            for (int x = 0; x < maskWidth; x++) {
-
-                float dx = x - maskWidth / 2f;
-                float dy = y - maskHeight / 2f;
-
-                float dist = (float)Math.sqrt(dx * dx + dy * dy);
-
-                int index = y * maskWidth + x;
-
-                if (dist < 80) {
-                    data[index] = (byte)255;
-                } else {
-                    data[index] = 0;
-                }
-            }
-        }
-
-        testMaskBuffer = ByteBuffer.allocateDirect(data.length);
-        testMaskBuffer.put(data);
-        testMaskBuffer.position(0);
+    public void updateFaceLandmarks(float lcX, float lcY,
+                                    float rcX, float rcY,
+                                    float nX,  float nY) {
+        leftCheekX = lcX; leftCheekY = lcY;
+        rightCheekX = rcX; rightCheekY = rcY;
+        noseX = nX; noseY = nY;
+        glView.requestRender();
     }
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+        program = ShaderUtils.createProgram(
+                ShaderUtils.VERTEX_SHADER, ShaderUtils.FRAGMENT_SHADER);
 
-        textureId = createOESTexture();
+        int[] tex = new int[1];
+        GLES20.glGenTextures(1, tex, 0);
+        textureId = tex[0];
 
-
+        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId);
+        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
 
         surfaceTexture = new SurfaceTexture(textureId);
         surfaceTexture.setOnFrameAvailableListener(this);
 
-        vertexBuffer = ByteBuffer.allocateDirect(vertices.length * 4)
-                .order(ByteOrder.nativeOrder())
-                .asFloatBuffer();
-        vertexBuffer.put(vertices).position(0);
+        if (callback != null) callback.onReady(surfaceTexture);
+    }
 
-        texBuffer = ByteBuffer.allocateDirect(texCoords.length * 4)
-                .order(ByteOrder.nativeOrder())
-                .asFloatBuffer();
-        texBuffer.put(texCoords).position(0);
-
-        // compile shaders HERE (correct place)
-        program = ShaderUtils.createProgram(
-                ShaderUtils.VERTEX_SHADER,
-                ShaderUtils.FRAGMENT_SHADER
-        );
-
-        positionHandle = GLES20.glGetAttribLocation(program, "position");
-        texCoordHandle = GLES20.glGetAttribLocation(program, "texCoord");
-        textureUniform = GLES20.glGetUniformLocation(program, "texture");
-        filterModeUniform = GLES20.glGetUniformLocation(program, "filterMode");
-
-// Also initialize the mask texture here — it's currently never created!
-        maskTextureId = createMaskTexture();
-
-        // Upload a blank white mask so the shader doesn't sample garbage
-        byte[] blank = new byte[4 * 4];
-
-        // ✅ Fix — fill with 0 (black = no filter until real mask comes in)
-        java.util.Arrays.fill(blank, (byte) 0);
-        ByteBuffer blankBuf = ByteBuffer.wrap(blank);
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, maskTextureId);
-        GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_LUMINANCE,
-                4, 4, 0, GLES20.GL_LUMINANCE, GLES20.GL_UNSIGNED_BYTE, blankBuf);
-        maskUniform =
-                GLES20.glGetUniformLocation(program, "maskTexture");
-
-        if (callback != null) {
-            callback.onReady(surfaceTexture);
-        }
+    @Override
+    public void onSurfaceChanged(GL10 gl, int w, int h) {
+        GLES20.glViewport(0, 0, w, h);
+        viewportW = w;
+        viewportH = h;
     }
 
     @Override
     public void onDrawFrame(GL10 gl) {
-
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-
-        if (surfaceTexture != null) {
-            surfaceTexture.updateTexImage();
+        synchronized (this) {
+            if (frameAvailable) {
+                surfaceTexture.updateTexImage();
+                frameAvailable = false;
+            }
         }
 
+        GLES20.glClearColor(0f, 0f, 0f, 1f);
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
         GLES20.glUseProgram(program);
-        GLES20.glUniform1i(filterModeUniform, currentFilterMode);
 
-        // IMPORTANT: bind camera texture
+        int aPos = GLES20.glGetAttribLocation(program, "position");
+        int aTex = GLES20.glGetAttribLocation(program, "texCoord");
+
+        quadBuf.position(0);
+        GLES20.glVertexAttribPointer(aPos, 2, GLES20.GL_FLOAT, false, 16, quadBuf);
+        GLES20.glEnableVertexAttribArray(aPos);
+
+        quadBuf.position(2);
+        GLES20.glVertexAttribPointer(aTex, 2, GLES20.GL_FLOAT, false, 16, quadBuf);
+        GLES20.glEnableVertexAttribArray(aTex);
+
+        float[] stMatrix = new float[16];
+        surfaceTexture.getTransformMatrix(stMatrix);
+        GLES20.glUniformMatrix4fv(
+                GLES20.glGetUniformLocation(program, "uSTMatrix"), 1, false, stMatrix, 0);
+
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId);
-        GLES20.glUniform1i(textureUniform, 0);
+        GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uTexture"), 0);
 
-        GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
+        GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uFilterMode"), filterMode);
 
-        GLES20.glBindTexture(
-                GLES20.GL_TEXTURE_2D,
-                maskTextureId
-        );
+        // Pass actual viewport dimensions so shader works in pixel space
+        GLES20.glUniform2f(GLES20.glGetUniformLocation(program, "uResolution"),
+                viewportW, viewportH);
 
-        GLES20.glUniform1i(maskUniform, 1);
-
-        GLES20.glEnableVertexAttribArray(positionHandle);
-        GLES20.glEnableVertexAttribArray(texCoordHandle);
-
-        GLES20.glVertexAttribPointer(positionHandle, 2, GLES20.GL_FLOAT, false, 0, vertexBuffer);
-        GLES20.glVertexAttribPointer(texCoordHandle, 2, GLES20.GL_FLOAT, false, 0, texBuffer);
+        GLES20.glUniform2f(GLES20.glGetUniformLocation(program, "uLeftCheek"),
+                leftCheekX, leftCheekY);
+        GLES20.glUniform2f(GLES20.glGetUniformLocation(program, "uRightCheek"),
+                rightCheekX, rightCheekY);
+        GLES20.glUniform2f(GLES20.glGetUniformLocation(program, "uNose"),
+                noseX, noseY);
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
-
-        GLES20.glDisableVertexAttribArray(positionHandle);
-        GLES20.glDisableVertexAttribArray(texCoordHandle);
     }
 
     @Override
-    public void onSurfaceChanged(GL10 gl, int width, int height) {
-        GLES20.glViewport(0, 0, width, height);
-    }
-
-    @Override
-    public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-        Log.d("GL", "Frame available");
-        if (glView != null) {
-            glView.requestRender();
-        }
-    }
-
-    public SurfaceTexture getSurfaceTexture() {
-        return surfaceTexture;
-    }
-
-    private int createOESTexture() {
-        int[] tex = new int[1];
-
-        GLES20.glGenTextures(1, tex, 0);
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, tex[0]);
-
-        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
-                GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-
-        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
-                GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-
-        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
-                GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-
-        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
-                GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-
-        return tex[0];
-    }
-
-    public void updateMask(Bitmap bitmap) {
-        Log.d("MASK", "Updating mask texture");
-
-        if (bitmap == null || maskTextureId == 0) return;
-
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, maskTextureId);
-
-        GLUtils.texImage2D(
-                GLES20.GL_TEXTURE_2D,
-                0,
-                bitmap,
-                0
-        );
+    public void onFrameAvailable(SurfaceTexture st) {
+        synchronized (this) { frameAvailable = true; }
+        glView.requestRender();
     }
 }
