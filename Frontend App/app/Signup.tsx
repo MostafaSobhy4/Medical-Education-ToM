@@ -86,7 +86,18 @@ export default function Signup() {
       return;
     }
 
-    const account = { name, username, email, phone, password };
+    accounts.forEach((acc: any) => {
+      acc.isCurrent = false;
+    });
+
+    const account = {
+      name,
+      username,
+      email,
+      phone,
+      password,
+      isCurrent: true,
+    };
 
     accounts.push(account);
 

@@ -16,7 +16,7 @@ export default function Settings() {
 
   const clearData = async () => {
     await AsyncStorage.clear();
-    alert("Data cleared ✅");
+    alert("Data cleared Successfully");
   };
 
   return (
@@ -24,22 +24,21 @@ export default function Settings() {
 
       <Text style={styles.title}>Settings</Text>
 
-      <TouchableOpacity style={styles.item}>
-        <Ionicons name="person-outline" size={22} color="white" />
-        <Text style={styles.text}>Profile</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.item}>
-        <Ionicons name="moon-outline" size={22} color="white" />
-        <Text style={styles.text}>Dark Mode</Text>
-      </TouchableOpacity>
+        {isLoggedin ? (
+          <TouchableOpacity style={styles.item} onPress={() => router.push("/Profile")}>
+            <Ionicons name="person-outline" size={22} color="white" />
+            <Text style={styles.text}>Profile</Text>
+          </TouchableOpacity>
+        ) : (
+          <></>
+        )}
 
       <TouchableOpacity style={styles.item} onPress={clearData}>
         <Ionicons name="trash-outline" size={22} color="white" />
         <Text style={styles.text}>Clear Data</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.item}>
+      <TouchableOpacity style={styles.item} onPress={() => router.push("/About App")}>
         <Ionicons name="information-circle-outline" size={22} color="white" />
         <Text style={styles.text}>About App</Text>
       </TouchableOpacity>

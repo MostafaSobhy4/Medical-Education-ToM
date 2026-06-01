@@ -1,4 +1,3 @@
-import GalleryButton from "@/components/GalleryButton";
 import { Isloggedin } from "@/context/IsLoggedIn";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -84,8 +83,6 @@ return (
               <Text style={{ color: "white" }}>Start Camera</Text>
               <Ionicons name="camera-outline" size={22} color="white" />
             </TouchableOpacity>
-
-            <GalleryButton />
           </>
         ) : (
           <>
