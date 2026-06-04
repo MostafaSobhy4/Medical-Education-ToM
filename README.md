@@ -1,52 +1,151 @@
-# Welcome to your Expo app 👋
+# AR Filter App
 
-Access The App through: https://drive.google.com/file/d/1TFqvkfEfqJvIn6GhmdPqWKvnaYAdBvQh/view?usp=sharing 
+A lightweight mobile application built with Java and OpenGL that showcases basic augmented reality filter effects and real-time graphics rendering.
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Access The App through: https://drive.google.com/file/d/1TFqvkfEfqJvIn6GhmdPqWKvnaYAdBvQh/view?usp=sharing
 
-## Get started
+---
 
-1. Install dependencies
+# AR Filter Frontend App By React Native
 
-   ```bash
-   npm install
-   ```
+This application is a frontend-only mobile application built with React Native and Expo for demonstrating the user interface and navigation flow of an AR Filter app.
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## Requirements
 
-In the output, you'll find options to open the app in a
+Before running the project, make sure you have the following installed:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- Node.js
+- npm (comes with Node.js)
+- Expo Go app on your mobile device
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Install Node.js
 
-## Get a fresh project
+Download and install Node.js from the official website:
 
-When you're ready, run:
+https://nodejs.org/
+
+After installation, verify it using:
+
+```bash
+node -v
+npm -v
+```
+
+---
+
+## Install Expo Go
+
+Download the Expo Go app on your phone:
+
+- Android: Google Play Store
+- iPhone: App Store
+
+Search for:
+
+```txt
+Expo Go
+```
+
+---
+
+## Getting Started
+
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+```
+
+### 2. Navigate to the project folder
+
+```bash
+cd AR-Filter-Frontend-App
+```
+
+### 3. Install dependencies
+
+```bash
+npm install
+```
+
+### 4. Start the development server
+
+```bash
+npx expo start
+```
+
+---
+
+## Run the Application
+
+After running the project, a QR code will appear in the terminal or browser.
+
+## On Mobile
+
+1. Open the Expo Go app
+2. Scan the QR code
+3. The application will start automatically
+
+---
+
+## Project Structure
+
+```txt
+app/                # Application screens and routes
+assets/             # Images, fonts, and static assets
+components/         # Reusable UI components
+```
+
+This project uses file-based routing with Expo Router.
+
+---
+
+## Useful Commands
+
+### Start the project
+
+```bash
+npx expo start
+```
+
+### Reset the project
 
 ```bash
 npm run reset-project
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Install a new package
 
-## Learn more
+```bash
+npm install package-name
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+---
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Technologies Used
 
-## Join the community
+- React Native
+- Expo
+- Expo Router
+- TypeScript
 
-Join our community of developers creating universal apps.
+---
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Learn More
+
+- Expo Documentation  
+  https://docs.expo.dev/
+
+- Expo Router Documentation  
+  https://docs.expo.dev/router/introduction/
+
+- React Native Documentation  
+  https://reactnative.dev/
+
+---
+
+## Author
+
+Frontend Mobile Application developed using Expo & React Native.
