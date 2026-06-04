@@ -42,7 +42,7 @@ export default function About_App() {
 
           <Text style={styles.item}>• Malak Ahmed</Text>
           <Text style={styles.item}>• Fatma Nazih</Text>
-          <Text style={styles.item}>• Mohammed Ahmed</Text>
+          <Text style={styles.item}>• Mostafa Sobhy</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

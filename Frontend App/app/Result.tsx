@@ -5,7 +5,7 @@ import { useContext } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function Result() {
-    const { image } = useContext(ImageContext);
+    const { image, filter } = useContext(ImageContext);
     const saveImage = async () => {
         if (!image) return;
 
@@ -14,6 +14,16 @@ export default function Result() {
 
         alert("Image saved Successfully");
     };
+    
+    const getMessage = () => {
+      if (!filter) return "Original Image";
+
+      if (filter === "jaundice") return "Jaundice Filter Applied Successfully!";
+      if (filter === "rash") return "Rash Filter Applied Successfully!";
+
+      return "Filter Applied";
+    };
+
 
     return (
         <View style={styles.container}>
@@ -27,7 +37,7 @@ export default function Result() {
             )}
 
             <Text style={styles.subtitle}>
-            Me7ashesh Filter Applied
+            {getMessage()}
             </Text>
 
             <View style={styles.buttons}>

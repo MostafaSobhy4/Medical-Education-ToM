@@ -6,11 +6,12 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function CameraScreen() {
   const cameraRef = useRef<any>(null);
-  const { setImage } = useContext(ImageContext);
+  const { setImage, setFilter } = useContext(ImageContext);
 
   const [permission, requestPermission] = useCameraPermissions();
 
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  
 
   const filters = [
     {
@@ -69,6 +70,7 @@ export default function CameraScreen() {
             const photo = await cameraRef.current.takePictureAsync();
 
             setImage(photo.uri);
+            setFilter(activeFilter)
 
             console.log("Selected filter:", activeFilter);
 
