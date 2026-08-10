@@ -2,8 +2,6 @@
 
 A lightweight mobile application built with Java and OpenGL that showcases basic augmented reality filter effects and real-time graphics rendering.
 
-Access The App through: https://drive.google.com/file/d/1TFqvkfEfqJvIn6GhmdPqWKvnaYAdBvQh/view?usp=sharing
-
 ---
 
 # AR Filter Frontend App By React Native
